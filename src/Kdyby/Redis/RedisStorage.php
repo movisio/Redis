@@ -286,6 +286,14 @@ class RedisStorage implements IMultiReadStorage
 			return;
 		}
 
+		if (!empty($conds[Cache::NAMESPACES])) {
+			foreach ($conds[Cache::NAMESPACES] as $value) {
+				if ($keys = $this->client->send('keys', array(self::NS_NETTE . ':' . $value . ':*'))) {
+					$this->client->send('del', $keys);
+				}
+			}
+		}
+
 		// cleaning using journal
 		if ($this->journal) {
 			if ($keys = $this->journal->clean($conds, $this)) {

@@ -37,14 +37,21 @@ class RedisJournal implements Nette\Caching\Storages\IJournal
 	 */
 	protected $client;
 
+	/**
+	 * Namespace for journal
+	 */
+	protected $namespace = "";
+
 
 
 	/**
 	 * @param RedisClient $client
+	 * @param string $namespace
 	 */
-	public function __construct(RedisClient $client)
+	public function __construct(RedisClient $client, $namespace = '')
 	{
 		$this->client = $client;
+		$this->namespace = $namespace;
 	}
 
 
@@ -131,6 +138,16 @@ class RedisJournal implements Nette\Caching\Storages\IJournal
 			}
 		}
 
+		if (!empty($conds[Cache::NAMESPACES])) {
+			foreach ($conds[Cache::NAMESPACES] as $key => $value) {
+				if ($keys = $this->client->keys(self::NS_NETTE . ':' . $value . ':*')) {
+					$this->client->multi();
+					call_user_func_array([$this->client, 'del'], $keys);
+					$this->client->exec();
+				}
+			}
+		}
+
 		if (isset($conds[Cache::PRIORITY])) {
 			$this->cleanEntry($found = $this->priorityEntries($conds[Cache::PRIORITY]));
 			$entries = array_merge($entries, $found);
@@ -184,7 +201,7 @@ class RedisJournal implements Nette\Caching\Storages\IJournal
 	 */
 	protected function formatKey($key, $suffix = NULL)
 	{
-		return self::NS_NETTE . ':' . $key . ($suffix ? ':' . $suffix : NULL);
+		return self::NS_NETTE . ':' . $this->namespace . $key . ($suffix ? ':' . $suffix : NULL);
 	}
 
 }
